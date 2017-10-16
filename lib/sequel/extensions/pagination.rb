@@ -40,13 +40,9 @@ module Sequel
     def paginate(page_no, page_size, record_count=nil)
       raise(Error, "You cannot paginate a dataset that already has a limit") if @opts[:limit]
 
-      record_count ||= count
-      page_count = (record_count / page_size.to_f).ceil
-      page_count = 1 if page_count == 0
-
       limit(page_size, (page_no - 1) * page_size).
         with_extend(Dataset::Pagination).
-        clone(:page_size=>page_size, :current_page=>page_no, :pagination_record_count=>record_count, :page_count=>page_count)
+        clone(:page_size=>page_size, :current_page=>page_no)
     end
       
     # Yields a paginated dataset for each page and returns the receiver. Does
@@ -76,7 +72,11 @@ module Sequel
       # this paginated dataset is one.  Empty datasets are considered
       # to have a single page.
       def page_count
-        @opts[:page_count]
+        unless @page_count
+          @page_count = (pagination_record_count / page_size.to_f).ceil
+          @page_count = 1 if @page_count == 0
+        end
+        @page_count
       end
 
       # The current page of the dataset, starting at 1 and not 0.
@@ -86,7 +86,7 @@ module Sequel
 
       # The total number of records in the dataset before pagination.
       def pagination_record_count
-        @opts[:pagination_record_count]
+        @pagination_record_count ||= self.unlimited.count
       end
 
       # Returns the record range for the current page
@@ -133,6 +133,7 @@ module Sequel
       def prev_page
         current_page > 1 ? (current_page - 1) : nil
       end
+
     end
   end
 
